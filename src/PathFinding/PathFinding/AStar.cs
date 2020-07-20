@@ -152,6 +152,45 @@ namespace ZiLongGame
         }
     }
 
+    public class NewAstar
+    {
+       
+        public const int m_width = 30;
+        public const int m_height = 100;
+        public char[,] m_mapBuffer = new char[m_width,m_height];
+        public Int32 depth = 0;
+        public const Int32 m_depthLimit = 2000;
+        public bool[,] m_closeAndBarrierList = new bool[m_width,m_height];
+        public Int32[,] direction = new Int32[,] { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }, { 1, -1 } };
+      
+        public void CreateMap()
+        {
+            for (int i = 0; i < m_width; ++i)
+                for (int j = 0; j < m_height; ++j)
+                {
+                    //五分之一概率生成障碍物，不可走
+                    Random random = new Random();
+                    if (random.Next() % 5 == 0)
+                    {
+                        m_mapBuffer[i,j] = '*';
+                        m_closeAndBarrierList[i,j] = true;
+                    }
+                    else
+                    {
+                        m_mapBuffer[i,j] = ' ';
+                        m_closeAndBarrierList[i,j] = false;
+                    }
+                }
+        }
+
+
+        public List<OpenPoint> FindPath(Vector start, Vector end)
+        {
+            List<OpenPoint> road;
+
+        }
+    }
+
     
     public class AStar
     {
