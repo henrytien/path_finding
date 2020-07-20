@@ -56,8 +56,8 @@ namespace ZiLongGame
         public Int32 m_y;
         public Int32 m_cost;
         public double m_pred;
-        OpenPoint m_parent;
-        public OpenPoint(Vector2 start, Vector2 end, float c, OpenPoint parent)
+        public OpenPoint m_parent;
+        public OpenPoint(Vector2 start, Vector2 end, float c,ref OpenPoint parent)
         {
             float relativeX = Math.Abs(end.X - start.X);
             float relativeY = Math.Abs(end.Y - start.Y);
@@ -158,11 +158,17 @@ namespace ZiLongGame
         public const int m_width = 30;
         public const int m_height = 100;
         public char[,] m_mapBuffer = new char[m_width,m_height];
-        public Int32 depth = 0;
+        public Int32 m_depth = 0;
         public const Int32 m_depthLimit = 2000;
         public bool[,] m_closeAndBarrierList = new bool[m_width,m_height];
-        public Int32[,] direction = new Int32[,] { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }, { 1, -1 } };
-      
+        public Int32[,] m_direction = new Int32[8,2] { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }, { 1, -1 } };
+        List<OpenPoint> m_openList = new List<OpenPoint>();
+        List<OpenPoint> m_pointList = new List<OpenPoint>(m_depthLimit);
+        //public NewAstar m_instance;
+        public NewAstar()
+        {
+            //m_instance = new NewAstar();
+        }
         public void CreateMap()
         {
             for (int i = 0; i < m_width; ++i)
@@ -172,22 +178,111 @@ namespace ZiLongGame
                     Random random = new Random();
                     if (random.Next() % 5 == 0)
                     {
-                        m_mapBuffer[i,j] = '*';
-                        m_closeAndBarrierList[i,j] = true;
+                        m_mapBuffer[i, j] = '*';
+                        m_closeAndBarrierList[i, j] = true;
                     }
                     else
                     {
-                        m_mapBuffer[i,j] = ' ';
-                        m_closeAndBarrierList[i,j] = false;
+                        m_mapBuffer[i, j] = ' ';
+                        m_closeAndBarrierList[i, j] = false;
                     }
                 }
         }
 
-
-        public List<OpenPoint> FindPath(Vector start, Vector end)
+        public bool InBarrierAndCloseList(Vector2 pos)
         {
-            List<OpenPoint> road;
+            if (pos.X < 0 || pos.Y < 0 || pos.X >= m_width || pos.Y >= m_height)
+            {
+                return true;
+            }
+            return m_closeAndBarrierList[(Int32)pos.X,(Int32)pos.Y];
+        }
 
+        public OpenPoint CreateOpenList(Vector2 start, Vector2 end, Int32 c, ref OpenPoint parent)
+        {
+            OpenPoint openPoint = new OpenPoint(start, end, c, ref parent);
+            m_pointList.Add(openPoint);
+
+            return m_pointList.Last();
+        }
+
+        public void Open(ref OpenPoint pointToOpen, Vector2 end)
+        {
+            m_openList.RemoveAt(0);
+            ++m_depth;
+
+            // check direction
+            for (int i = 0; i < 4; i++)
+            {
+                float toOpenX = pointToOpen.m_x + m_direction[i, 0];
+                float toOpenY = pointToOpen.m_y + m_direction[i, 1];
+                Vector2 pos = new Vector2(toOpenX, toOpenY);
+                if (!InBarrierAndCloseList(pos))
+                {
+                    m_openList.Add(CreateOpenList(pos, end, pointToOpen.m_cost + 10,ref  pointToOpen));
+                }
+            }
+
+            // check 
+            for (int i = 4; i < 8; i++)
+            {
+                float toOpenX = pointToOpen.m_x + m_direction[i, 0];
+                float toOpenY = pointToOpen.m_y + m_direction[i, 1];
+                Vector2 pos = new Vector2(toOpenX, toOpenY);
+                if (!InBarrierAndCloseList(pos))
+                {
+                    m_openList.Add(CreateOpenList(pos, end, pointToOpen.m_cost + 14,ref pointToOpen));
+                }
+            }
+            // Add point to close list
+            m_closeAndBarrierList[pointToOpen.m_x, pointToOpen.m_y] = true;
+        }
+
+        // Path finding.
+        public List<OpenPoint> FindPath(Vector2 start, Vector2 end)
+        {
+            List<OpenPoint> path = new List<OpenPoint>();
+            OpenPoint pointToOpen = null;
+            m_openList.Add(CreateOpenList(start, end, 0, ref pointToOpen));
+
+            OpenPoint toOpen = null;
+            while (!m_openList.Any())
+            {
+                toOpen = m_openList.First();
+                // Out of depth.
+                if (toOpen.m_x == end.X && toOpen.m_y == end.Y) 
+                {
+                    break; 
+                }
+
+                if (m_depth>= m_depthLimit)
+                {
+                    toOpen = null;
+                    break;
+                }
+
+                Open(ref toOpen, end);
+            }
+
+            while (toOpen.m_parent != null)
+            {
+                path.Add(toOpen.m_parent);
+            }
+            path.Reverse();
+            return path;
+        }
+
+       public void PrintMap()
+        {
+            for (int i = 0; i < m_width; i++)
+            {
+                for (int j = 0; j < m_height; j++)
+                {
+                    Console.WriteLine(m_mapBuffer[i, j]);
+                }
+            }
+            Console.WriteLine("\n");
+        
         }
     }
 
