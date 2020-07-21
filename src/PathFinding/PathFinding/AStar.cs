@@ -54,15 +54,20 @@ namespace ZiLongGame
     {
         public Int32 m_x;
         public Int32 m_y;
-        public Int32 m_cost;
+        public float m_cost;
         public double m_pred;
         public OpenPoint m_parent;
-        public OpenPoint(Vector2 start, Vector2 end, float c,ref OpenPoint parent)
+        public OpenPoint(Vector2 start, Vector2 end, float c, OpenPoint parent)
         {
             float relativeX = Math.Abs(end.X - start.X);
             float relativeY = Math.Abs(end.Y - start.Y);
             float delta = relativeX - relativeY;
+            m_x = (Int32)start.X;
+            m_y = (Int32)start.Y;
+            m_cost = c;
             m_pred = Math.Max(relativeX, relativeY) * 14.0 - Math.Abs(delta) * 4.0 + c;
+            m_parent = parent;
+            //parent = this;
         }
 
         public bool CompareTo(object iObj)
@@ -159,11 +164,12 @@ namespace ZiLongGame
         public const int m_height = 100;
         public char[,] m_mapBuffer = new char[m_width,m_height];
         public Int32 m_depth = 0;
-        public const Int32 m_depthLimit = 2000;
+        public const Int32 m_depthLimit = 50000;
         public bool[,] m_closeAndBarrierList = new bool[m_width,m_height];
         public Int32[,] m_direction = new Int32[8,2] { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }, { 1, -1 } };
         List<OpenPoint> m_openList = new List<OpenPoint>();
         List<OpenPoint> m_pointList = new List<OpenPoint>(m_depthLimit);
+        OpenPoint m_current;
         //public NewAstar m_instance;
         public NewAstar()
         {
@@ -198,17 +204,22 @@ namespace ZiLongGame
             return m_closeAndBarrierList[(Int32)pos.X,(Int32)pos.Y];
         }
 
-        public OpenPoint CreateOpenList(Vector2 start, Vector2 end, Int32 c, ref OpenPoint parent)
+        public OpenPoint CreateOpenList(Vector2 start, Vector2 end, float c, OpenPoint parent)
         {
-            OpenPoint openPoint = new OpenPoint(start, end, c, ref parent);
+            OpenPoint openPoint = new OpenPoint(start, end, c, parent);
             m_pointList.Add(openPoint);
 
             return m_pointList.Last();
         }
 
-        public void Open(ref OpenPoint pointToOpen, Vector2 end)
+        public void Open(OpenPoint pointToOpen, Vector2 end)
         {
-            m_openList.RemoveAt(0);
+            m_current = m_openList[0];
+            // Remove parent from openList
+            m_openList.Remove(m_current);
+            if (m_openList.Count >= 1)
+            Console.WriteLine("Remove after x:{0:d} y:{1:d}", m_openList[0].m_x, m_openList[0].m_y);
+
             ++m_depth;
 
             // check direction
@@ -216,10 +227,13 @@ namespace ZiLongGame
             {
                 float toOpenX = pointToOpen.m_x + m_direction[i, 0];
                 float toOpenY = pointToOpen.m_y + m_direction[i, 1];
+                Console.WriteLine("4Direction after x:{0:d} y:{1:d}", m_direction[i, 0], m_direction[i, 1]);
+
                 Vector2 pos = new Vector2(toOpenX, toOpenY);
                 if (!InBarrierAndCloseList(pos))
                 {
-                    m_openList.Add(CreateOpenList(pos, end, pointToOpen.m_cost + 10,ref  pointToOpen));
+                    m_openList.Add(CreateOpenList(pos, end, pointToOpen.m_cost + 10, m_current));
+                    m_closeAndBarrierList[pointToOpen.m_x, pointToOpen.m_y] = true;
                 }
             }
 
@@ -228,14 +242,19 @@ namespace ZiLongGame
             {
                 float toOpenX = pointToOpen.m_x + m_direction[i, 0];
                 float toOpenY = pointToOpen.m_y + m_direction[i, 1];
+                Console.WriteLine("4-8Direction after x:{0:d} y:{1:d}", m_direction[i, 0], m_direction[i, 1]);
+
                 Vector2 pos = new Vector2(toOpenX, toOpenY);
                 if (!InBarrierAndCloseList(pos))
                 {
-                    m_openList.Add(CreateOpenList(pos, end, pointToOpen.m_cost + 14,ref pointToOpen));
+                    m_openList.Add(CreateOpenList(pos, end, pointToOpen.m_cost + 14,pointToOpen));
+                    m_closeAndBarrierList[pointToOpen.m_x, pointToOpen.m_y] = true;
+
                 }
             }
             // Add point to close list
             m_closeAndBarrierList[pointToOpen.m_x, pointToOpen.m_y] = true;
+
         }
 
         // Path finding.
@@ -243,32 +262,37 @@ namespace ZiLongGame
         {
             List<OpenPoint> path = new List<OpenPoint>();
             OpenPoint pointToOpen = null;
-            m_openList.Add(CreateOpenList(start, end, 0, ref pointToOpen));
+            m_openList.Add(CreateOpenList(start, end, 0, pointToOpen));
 
             OpenPoint toOpen = null;
-            while (!m_openList.Any())
+            while (m_openList.Count != 0)
             {
+                m_openList = m_openList.OrderBy(n => n.m_pred).ToList<OpenPoint>();
                 toOpen = m_openList.First();
+                Console.WriteLine("x:{0:d} y:{1:d}", toOpen.m_x, toOpen.m_y);
                 // Out of depth.
-                if (toOpen.m_x == end.X && toOpen.m_y == end.Y) 
+                if (toOpen.m_x == (Int32)end.X && toOpen.m_y == (Int32)end.Y) 
                 {
                     break; 
                 }
 
-                if (m_depth>= m_depthLimit)
+                if (m_depth >= m_depthLimit)
                 {
                     toOpen = null;
                     break;
                 }
 
-                Open(ref toOpen, end);
+                Open(toOpen, end);
             }
-
-            while (toOpen.m_parent != null)
+            if (toOpen != null)
             {
-                path.Add(toOpen.m_parent);
+                while (toOpen.m_parent != null)
+                {
+                    path.Add(toOpen.m_parent);
+                }
+                path.Reverse();
             }
-            path.Reverse();
+            
             return path;
         }
 
