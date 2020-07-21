@@ -1,3 +1,6 @@
 
 src/PathFinding/bin/Debug/*
 src/PathFinding/obj/*
+src/AStar/.vs/*
+src/AStar/AStar/Debug/*
+src/AStar/Debug/*
